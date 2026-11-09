@@ -10,6 +10,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
+from app.ai import (
+    CONNECTIVITY_PROMPT,
+    OpenRouterConfigurationError,
+    OpenRouterRequestError,
+    ask_openrouter,
+)
 from app.board import Board, read_board, write_board
 from app.database import (
     SESSION_DURATION,
@@ -96,6 +102,16 @@ def create_app(
     @application.get("/api/hello")
     async def hello_world() -> dict[str, str]:
         return {"message": "Hello from FastAPI", "status": "ok"}
+
+    @application.post("/api/ai/connectivity")
+    async def ai_connectivity(user_id: CurrentUser) -> dict[str, str]:
+        try:
+            response = await ask_openrouter(CONNECTIVITY_PROMPT)
+        except OpenRouterConfigurationError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except OpenRouterRequestError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+        return {"response": response}
 
     @application.post("/api/auth/login")
     async def login(

@@ -180,19 +180,20 @@ Success criteria:
 Purpose: establish OpenRouter connectivity and confirm the backend can call the configured model.
 
 Checklist:
-- [ ] Add the OpenRouter configuration and environment handling.
-- [ ] Test a basic AI request such as 2 + 2.
-- [ ] Validate required environment variables and error handling.
-- [ ] Confirm the backend can respond with the model output in a stable way.
+- [x] Add the OpenRouter configuration and environment handling.
+- [x] Test a basic AI request such as 2 + 2.
+- [x] Validate required environment variables and error handling.
+- [x] Confirm the backend can respond with the model output in a stable way.
 
 Validation:
-- Execute a simple AI connectivity test in the backend.
-- Validate the response format and error handling.
-- Confirm the API key is used only from the environment config.
+- [x] Execute a simple AI connectivity test in the backend; the configured model returned `4`.
+- [x] Validate the stable response format and missing-key, upstream-status, network, and malformed-response handling.
+- [x] Confirm the API key is read only from `OPENROUTER_API_KEY` and is not included in image build inputs or error responses.
+- [x] Run backend tests (21 passed) and build and test the production Docker image.
 
 Success criteria:
-- The model is reachable and returns a valid response.
-- The app can integrate a real AI call as a backend service.
+- [x] The model is reachable and returns a valid response.
+- [x] The app can integrate a real AI call as a backend service.
 
 ## Part 9: Structured AI board operations
 

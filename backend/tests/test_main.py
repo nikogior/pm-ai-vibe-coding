@@ -1,11 +1,13 @@
-import re
-import sqlite3
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+import re
+import sqlite3
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ai import OpenRouterConfigurationError, OpenRouterRequestError
 from app.database import hash_session_token
 from app.main import FRONTEND_DIR, SESSION_COOKIE, create_app
 
@@ -48,6 +50,49 @@ def test_healthcheck_and_hello(client: TestClient) -> None:
         "message": "Hello from FastAPI",
         "status": "ok",
     }
+
+
+def test_ai_connectivity_requires_authentication_and_returns_model_response(
+    client: TestClient, monkeypatch
+) -> None:
+    ask_openrouter = AsyncMock(return_value="4")
+    monkeypatch.setattr("app.main.ask_openrouter", ask_openrouter)
+
+    assert client.post("/api/ai/connectivity").status_code == 401
+    ask_openrouter.assert_not_awaited()
+
+    sign_in(client)
+    response = client.post("/api/ai/connectivity")
+    assert response.status_code == 200
+    assert response.json() == {"response": "4"}
+    ask_openrouter.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("error", "status_code", "detail"),
+    [
+        (
+            OpenRouterConfigurationError("OPENROUTER_API_KEY is not configured."),
+            503,
+            "OPENROUTER_API_KEY is not configured.",
+        ),
+        (
+            OpenRouterRequestError("Could not reach OpenRouter."),
+            502,
+            "Could not reach OpenRouter.",
+        ),
+    ],
+)
+def test_ai_connectivity_returns_explicit_error(
+    client: TestClient, monkeypatch, error, status_code: int, detail: str
+) -> None:
+    monkeypatch.setattr("app.main.ask_openrouter", AsyncMock(side_effect=error))
+    sign_in(client)
+
+    response = client.post("/api/ai/connectivity")
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
 
 
 def test_database_initializes_schema_and_seed_board(

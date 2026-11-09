@@ -10,6 +10,7 @@ The backend currently provides:
 - `/api/hello` as a sample API endpoint
 - `/api/auth/login`, `/api/auth/session`, and `/api/auth/logout` for persistent cookie sessions
 - authenticated `/api/board` read and replace endpoints
+- authenticated `/api/ai/connectivity` for a basic OpenRouter model request
 
 SQLite is initialized at first startup, seeds the configured MVP user and sample board, and stores the database under `/data` in Docker. A named Docker volume persists it across container replacement. Passwords are stored as PBKDF2 hashes; session tokens are opaque and only their SHA-256 digests are stored.
 
@@ -20,7 +21,9 @@ The frontend is exported to `frontend/out` during the Docker image build. FastAP
 - app/main.py: FastAPI app, API routes, and static frontend mount
 - app/database.py: SQLite schema, initial user/board seeding, password hashing, and session helpers
 - app/board.py: board validation and mapping between API models and SQLite
+- app/ai.py: OpenRouter configuration, request handling, and response validation
 - tests/test_main.py: coverage for frontend serving and API responses
+- tests/test_ai.py: coverage for OpenRouter request and error handling
 
 ## Working principles
 
