@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "database": "SQLite",
+  "storage": {
+    "container_path": "/data/kanban.sqlite3",
+    "docker_volume": "pm-ai-vibe-coding-data"
+  },
+  "tables": {
+    "users": {
+      "description": "One row per account; supports future multiple-user use.",
+      "columns": {
+        "id": "TEXT PRIMARY KEY",
+        "username": "TEXT NOT NULL UNIQUE",
+        "password_hash": "TEXT NOT NULL",
+        "created_at": "TEXT NOT NULL"
+      }
+    },
+    "boards": {
+      "description": "One board per user in the MVP.",
+      "columns": {
+        "id": "TEXT PRIMARY KEY",
+        "user_id": "TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE",
+        "title": "TEXT NOT NULL",
+        "created_at": "TEXT NOT NULL",
+        "updated_at": "TEXT NOT NULL"
+      }
+    },
+    "columns": {
+      "description": "Ordered, renameable columns belonging to a board.",
+      "columns": {
+        "id": "TEXT PRIMARY KEY",
+        "board_id": "TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE",
+        "title": "TEXT NOT NULL",
+        "position": "INTEGER NOT NULL"
+      },
+      "constraints": [
+        "UNIQUE(board_id, id)",
+        "UNIQUE(board_id, position)"
+      ]
+    },
+    "cards": {
+      "description": "Cards are ordered within a column and board.",
+      "columns": {
+        "id": "TEXT PRIMARY KEY",
+        "board_id": "TEXT NOT NULL",
+        "column_id": "TEXT NOT NULL",
+        "title": "TEXT NOT NULL",
+        "details": "TEXT NOT NULL DEFAULT ''",
+        "position": "INTEGER NOT NULL",
+        "created_at": "TEXT NOT NULL",
+        "updated_at": "TEXT NOT NULL"
+      },
+      "constraints": [
+        "FOREIGN KEY(board_id) REFERENCES boards(id) ON DELETE CASCADE",
+        "FOREIGN KEY(board_id, column_id) REFERENCES columns(board_id, id) ON DELETE CASCADE",
+        "UNIQUE(column_id, position)"
+      ]
+    },
+    "auth_sessions": {
+      "description": "Persistent browser sessions; store only a digest of a random session token, never the raw token.",
+      "columns": {
+        "token_hash": "TEXT PRIMARY KEY",
+        "user_id": "TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE",
+        "created_at": "TEXT NOT NULL",
+        "expires_at": "TEXT NOT NULL"
+      },
+      "indexes": [
+        "INDEX(user_id)",
+        "INDEX(expires_at)"
+      ]
+    }
+  },
+  "relationships": [
+    "A user has at most one board.",
+    "A board has ordered columns and each column has ordered cards.",
+    "A user can have multiple active sessions across browser instances."
+  ]
+}

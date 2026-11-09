@@ -99,19 +99,22 @@ Success criteria:
 Purpose: define the app’s persistence model before backend implementation.
 
 Checklist:
-- [ ] Define the board, cards, columns, and user data model.
-- [ ] Design the schema to support multiple users and one board per user in the MVP.
-- [ ] Save the proposed schema as a JSON document in docs/.
-- [ ] Document assumptions for future extension and migrations.
-- [ ] Present the database design to the user and wait for approval.
+- [x] Define the board, cards, columns, and user data model.
+- [x] Design the schema to support multiple users and one board per user in the MVP.
+- [x] Include persistent auth sessions so sign-in can survive browser and container restarts.
+- [x] Save the proposed schema as a JSON document in docs/.
+- [x] Document assumptions for future extension and migrations.
+- [x] Present the database design to the user and receive approval.
 
 Validation:
-- Check the JSON schema against the MVP requirements.
-- Confirm keys and relations cover board state and user ownership.
-- Ensure the schema is simple enough for SQLite without overengineering.
+- [x] Check the JSON schema against the MVP requirements.
+- [x] Confirm keys and relations cover board state and user ownership.
+- [x] Ensure the schema is simple enough for SQLite without overengineering.
+- [x] Confirm the proposed persistent sign-in behavior with the user.
 
 Success criteria:
 - The schema is agreed, documented, and ready for backend implementation.
+- Sign-in and board state are designed to survive app/container restarts using SQLite on a persistent Docker volume.
 - The user approves the chosen persistence approach.
 
 ## Part 6: Backend API and persistence
@@ -119,43 +122,50 @@ Success criteria:
 Purpose: implement the API layer to read and update board state for a user and create the database if it is missing.
 
 Checklist:
-- [ ] Create the database if it does not exist.
-- [ ] Define the SQLite tables and initialization logic.
-- [ ] Add API routes for loading the board for a user.
-- [ ] Add API routes for creating, updating, renaming, and moving cards.
-- [ ] Add API routes for renaming columns and deleting cards.
-- [ ] Write backend unit tests covering each route and edge case.
+- [x] Create the database if it does not exist.
+- [x] Define the approved SQLite tables and initialization logic.
+- [x] Add persistent login, session validation, and logout API routes backed by hashed opaque tokens.
+- [x] Add an authenticated API route for loading a user's board.
+- [x] Add an authenticated board update route supporting card create/update/move/delete and column renaming.
+- [x] Connect the sign-in screen to the persistent backend session.
+- [x] Store the SQLite file on a named Docker volume that survives container restarts.
+- [x] Write focused backend tests for schema initialization, auth, board persistence, and invalid board updates.
 
 Validation:
-- Run the backend test suite.
-- Test CRUD and state persistence with SQLite.
-- Verify the database is created automatically on first run.
+- [x] Run the backend test suite.
+- [x] Test board mutations and auth session persistence with SQLite.
+- [x] Verify the database is created automatically on first run.
+- [x] Verify sign-in and board data persist through a production container restart.
 
 Success criteria:
-- The backend can fully represent the user’s board state.
-- The app stores data in SQLite and loads it on subsequent sessions.
-- Backend tests pass reliably.
+- The backend can read and persist the user's fixed-column Kanban board.
+- Sign-in is persisted as a 30-day HttpOnly cookie session whose token digest is stored in SQLite.
+- The app stores the database in a persistent Docker volume so data survives container restart/replacement.
+- Focused backend and UI tests pass reliably.
 
 ## Part 7: Frontend + backend integration
 
 Purpose: replace the demo-only in-memory board with data from the backend.
 
 Checklist:
-- [ ] Update the frontend to fetch board data from the backend.
-- [ ] Submit card moves, edits, renames, and creation to the API.
-- [ ] Handle loading and error states gracefully.
-- [ ] Refresh the board after successful mutations.
-- [ ] Add integration tests for the end-to-end board workflow.
+- [x] Update the frontend to fetch board data from the backend.
+- [x] Submit supported card creation, deletion, movement, and column renames to the API.
+- [x] Add a frontend UI for editing existing card titles/details and persist those edits.
+- [x] Handle loading and error states gracefully.
+- [x] Apply the board returned by successful API saves when no newer local change exists.
+- [x] Add unit and browser tests for the board load, card edit, and mutation workflow.
 
 Validation:
-- Run the frontend and backend tests together.
-- Manually verify that board changes persist after reload.
-- Confirm the frontend reflects API state changes correctly.
+- [x] Run frontend unit/browser tests and backend tests.
+- [x] Verify card creation, editing, movement, and column renaming persist after reload against the Docker API.
+- [x] Verify those changes remain after restarting a container with the same SQLite volume.
+- [x] Confirm the frontend reflects API state changes correctly.
 
 Success criteria:
-- The board is no longer static or local-only.
-- Changes persist across sessions for the signed-in user.
-- UI and API behavior are covered by tests.
+- [x] The board is no longer static or local-only.
+- [x] Supported board changes persist for the signed-in user across reloads and container restarts.
+- [x] Current UI/API persistence behavior, including existing card edits, is covered by tests.
+- [x] Existing card title/details can be edited from the UI and saved.
 
 ## Part 8: AI connectivity
 

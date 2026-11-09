@@ -13,7 +13,7 @@ This directory contains the current Next.js frontend MVP for the project managem
 - next.config.ts: configures Next.js static export.
 
 - components/
-  - AuthGate.tsx: client-side demo sign-in gate, local session restoration, and logout.
+  - AuthGate.tsx: sign-in form connected to backend session validation, login, and logout endpoints.
   - KanbanBoard.tsx: main board component with drag-and-drop orchestration, card creation, card deletion, and column renaming.
   - KanbanColumn.tsx: UI for each Kanban column, plus add-card and rename actions.
   - KanbanCard.tsx: card display for a single task inside a column.
@@ -28,9 +28,11 @@ This directory contains the current Next.js frontend MVP for the project managem
 
 ## Current behavior
 
-The app is a static and in-memory demo board. It includes:
+The app is a static frontend served by FastAPI. It includes:
 - a demo sign-in gate with fixed user / password credentials
-- browser-local session restoration and logout
+- persistent cookie-backed session restoration and logout through FastAPI
+- loading the signed-in user's board from FastAPI
+- saving card creation, editing, deletion, movement, and column renames to FastAPI
 - five default columns
 - drag-and-drop card movement between columns
 - inline column renaming
@@ -38,14 +40,16 @@ The app is a static and in-memory demo board. It includes:
 - deleting cards
 - seeded sample project work items for a board
 
-This is a client-only implementation served as a static export. The demo sign-in gate stores its session in localStorage; it is not server-side authentication. There is no persistent backend integration or AI integration yet.
+The frontend is served as a static export. Authentication and board state are backed by FastAPI and SQLite. AI integration is not implemented yet.
 
 ## Important implementation notes
 
 - The app uses Next.js 16 with React 19.
 - Drag-and-drop is implemented with @dnd-kit.
-- State is stored in React useState; there is no API layer yet.
-- All board state is defined in lib/kanban.ts and is a good foundation for later backend persistence.
+- KanbanBoard fetches the user's saved board on mount and persists supported mutations through `/api/board`.
+- Board state is held in React state while displayed; SQLite is the durable source of truth.
+- Existing card titles and details can be edited inline before saving to the backend.
+- The board model and seed data are defined in lib/kanban.ts.
 - Styling is global CSS-driven and uses design tokens for the color system defined in the project requirements.
 
 ## Testing setup

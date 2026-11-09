@@ -19,4 +19,5 @@ The scripts build the Docker image and run the FastAPI service locally, exposing
 
 - The scripts rely on Docker being installed and available on PATH.
 - They read environment variables from the project root .env file at runtime.
+- They mount the persistent `pm-ai-vibe-coding-data` Docker volume at `/data` for the SQLite database.
 - These scripts are intentionally simple and should stay easy to maintain.

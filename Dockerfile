@@ -10,7 +10,8 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    DATABASE_PATH=/data/kanban.sqlite3
 
 RUN python -m pip install --upgrade pip && python -m pip install uv
 
@@ -18,6 +19,9 @@ COPY backend /app/backend
 COPY --from=frontend-build /app/frontend/out /app/frontend/out
 WORKDIR /app/backend
 RUN uv pip install --system --no-cache -e '.[dev]'
+
+RUN mkdir -p /data
+VOLUME ["/data"]
 
 EXPOSE 8000
 

@@ -1,53 +1,93 @@
 "use client";
 
-import { useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
-const SESSION_KEY = "pm-ai-vibe-coding-user";
-const SESSION_EVENT = "pm-ai-vibe-coding-session-change";
-
-const subscribeToSession = (callback: () => void) => {
-  window.addEventListener("storage", callback);
-  window.addEventListener(SESSION_EVENT, callback);
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener(SESSION_EVENT, callback);
-  };
-};
-
-const getSession = () => localStorage.getItem(SESSION_KEY) === "user";
-const getServerSession = () => false;
-
 export const AuthGate = () => {
-  const isSignedIn = useSyncExternalStore(
-    subscribeToSession,
-    getSession,
-    getServerSession
-  );
+  const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [logoutError, setLogoutError] = useState("");
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session")
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Unable to check sign-in session.");
+        }
+        const session: unknown = await response.json();
+        if (
+          typeof session !== "object" ||
+          session === null ||
+          !("authenticated" in session) ||
+          typeof session.authenticated !== "boolean"
+        ) {
+          throw new Error("Invalid sign-in session response.");
+        }
+        if (active) {
+          setIsSignedIn(session.authenticated);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setError("Unable to check sign-in session. Please try again.");
+          setIsSignedIn(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (username !== "user" || password !== "password") {
-      setError("Incorrect username or password.");
-      return;
-    }
-
-    localStorage.setItem(SESSION_KEY, "user");
-    window.dispatchEvent(new Event(SESSION_EVENT));
     setError("");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (response.status === 401) {
+        setError("Incorrect username or password.");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Sign-in request failed.");
+      }
+      setIsSignedIn(true);
+    } catch {
+      setError("Unable to sign in. Please try again.");
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    window.dispatchEvent(new Event(SESSION_EVENT));
+  const handleLogout = async () => {
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) {
+        throw new Error("Sign-out request failed.");
+      }
+      setIsSignedIn(false);
+    } catch {
+      setLogoutError("Unable to sign out. Please try again.");
+    }
   };
 
-  if (isSignedIn) {
-    return <KanbanBoard onLogout={handleLogout} />;
+  if (isSignedIn === true) {
+    return (
+      <KanbanBoard onLogout={handleLogout} logoutError={logoutError} />
+    );
+  }
+
+  if (isSignedIn === null) {
+    return (
+      <main className="grid min-h-screen place-items-center px-6">
+        <p className="text-sm text-[var(--gray-text)]">Checking sign-in...</p>
+      </main>
+    );
   }
 
   return (

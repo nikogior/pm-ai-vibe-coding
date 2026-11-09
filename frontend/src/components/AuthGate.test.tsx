@@ -1,16 +1,35 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthGate } from "@/components/AuthGate";
+import { initialData } from "@/lib/kanban";
 
-const SESSION_KEY = "pm-ai-vibe-coding-user";
+const response = (status: number, body?: unknown) =>
+  ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  }) as Response;
 
 describe("AuthGate", () => {
   beforeEach(() => {
-    localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn());
+    vi.mocked(fetch).mockResolvedValue(
+      response(200, { authenticated: false })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("only opens the board with valid credentials and logs out", async () => {
     const user = userEvent.setup();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(200, { authenticated: false }))
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(200, { username: "user" }))
+      .mockResolvedValueOnce(response(200, initialData))
+      .mockResolvedValueOnce(response(204));
     render(<AuthGate />);
 
     await user.type(await screen.findByLabelText("Username"), "wrong");
@@ -31,21 +50,38 @@ describe("AuthGate", () => {
     expect(
       await screen.findByRole("heading", { name: "Kanban Studio" })
     ).toBeInTheDocument();
-    expect(localStorage.getItem(SESSION_KEY)).toBe("user");
 
     await user.click(screen.getByRole("button", { name: "Log out" }));
 
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeVisible();
-    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/login",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/logout",
+      expect.objectContaining({ method: "POST" })
+    );
   });
 
   it("restores a signed-in session", async () => {
-    localStorage.setItem(SESSION_KEY, "user");
+    vi.mocked(fetch).mockResolvedValueOnce(
+      response(200, { authenticated: true, username: "user" })
+    ).mockResolvedValueOnce(response(200, initialData));
     render(<AuthGate />);
 
     expect(
       await screen.findByRole("heading", { name: "Kanban Studio" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  });
+
+  it("reports an unavailable authentication service", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("network unavailable"));
+    render(<AuthGate />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to check sign-in session."
+    );
   });
 });
