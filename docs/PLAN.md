@@ -155,11 +155,18 @@ Checklist:
 - [x] Apply the board returned by successful API saves when no newer local change exists.
 - [x] Add unit and browser tests for board loading, card edits, populated/empty-column drops, target highlighting, and same-column reordering.
 
+Design decisions:
+- Prefer pointer-based collision detection so a column under the pointer is a valid target even when it is empty; prefer card targets when the pointer is over a card, and retain closest-corners as a fallback when the pointer is not over a droppable.
+- Highlight the destination column while dragging over either the column itself or one of its cards, and clear the highlight on drop or cancellation.
+
 Validation:
-- [x] Run frontend unit/browser tests and backend tests.
-- [x] Reproduce and verify drag/drop in populated columns, empty columns, and same-column reordering.
+- [x] Reproduce the empty-column/highlight failure with the previous closest-corners-only detection, then verify the pointer-prioritized fix.
+- [x] Run frontend unit tests (10), browser tests (7), lint, and production build; all passed.
+- [x] Run backend tests (11 passed; one existing Starlette/httpx deprecation warning).
+- [x] Verify populated-column drops/highlighting, empty-column drops/highlighting, and same-column reordering in Chromium.
 - [x] Verify card creation, editing, movement, and column renaming persist after reload against the Docker API.
-- [x] Verify those changes remain after restarting a container with the same SQLite volume.
+- [x] Verify board changes remain after restarting a container with the same SQLite volume.
+- [x] Verify the newly tested empty-column drop is saved by the Docker API and remains after page reload.
 - [x] Confirm the frontend reflects API state changes correctly.
 
 Success criteria:
