@@ -48,18 +48,25 @@ const mockAuthenticationApi = async (
     }
     await route.fulfill({ json: board });
   });
+  return {
+    getBoard: () => board,
+    setBoard: (nextBoard: BoardData) => {
+      board = nextBoard;
+    },
+  };
 };
 
 const signIn = async (
   page: import("@playwright/test").Page,
   emptyColumnId?: string
 ) => {
-  await mockAuthenticationApi(page, emptyColumnId);
+  const api = await mockAuthenticationApi(page, emptyColumnId);
   await page.goto("/");
   await page.getByLabel("Username").fill("user");
   await page.getByLabel("Password").fill("password");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  return api;
 };
 
 test("signs in, restores the session, and logs out", async ({ page }) => {
@@ -205,4 +212,75 @@ test("reorders cards when dropped over another card in the same column", async (
   await expect.poll(cardOrder).toEqual(["card-card-2", "card-card-1"]);
   await page.reload();
   await expect.poll(cardOrder).toEqual(["card-card-2", "card-card-1"]);
+});
+
+test("keeps chat history and applies AI board updates immediately", async ({
+  page,
+}) => {
+  const api = await signIn(page);
+  const requests: Array<{ message: string; history: unknown[] }> = [];
+  await page.route("**/api/ai/chat", async (route) => {
+    const request = route.request().postDataJSON() as {
+      message: string;
+      history: unknown[];
+    };
+    requests.push(request);
+    if (requests.length === 1) {
+      await route.fulfill({
+        json: { type: "reply", message: "There are eight cards." },
+      });
+      return;
+    }
+
+    const updatedBoard = structuredClone(api.getBoard());
+    updatedBoard.cards["card-1"].title = "AI-updated roadmap";
+    api.setBoard(updatedBoard);
+    await route.fulfill({
+      json: {
+        type: "board_update",
+        message: "I updated the roadmap card.",
+        board: updatedBoard,
+      },
+    });
+  });
+
+  const chat = page.getByRole("complementary", { name: "AI assistant" });
+  const input = chat.getByRole("textbox", { name: "Message the AI" });
+  await input.fill("How many cards are on the board?");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(chat.getByText("There are eight cards.")).toBeVisible();
+
+  await input.fill("Rename card one to AI-updated roadmap.");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByTestId("card-card-1").getByText("AI-updated roadmap"))
+    .toBeVisible();
+  await expect(chat.getByText("I updated the roadmap card.")).toBeVisible();
+  expect(requests[1].history).toEqual([
+    { role: "user", content: "How many cards are on the board?" },
+    { role: "assistant", content: "There are eight cards." },
+  ]);
+
+  await page.reload();
+  await expect(page.getByTestId("card-card-1").getByText("AI-updated roadmap"))
+    .toBeVisible();
+});
+
+test("shows AI request errors and keeps the prompt available to retry", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.route("**/api/ai/chat", async (route) => {
+    await route.fulfill({
+      status: 502,
+      json: { detail: "Could not reach OpenRouter." },
+    });
+  });
+
+  const chat = page.getByRole("complementary", { name: "AI assistant" });
+  const input = chat.getByRole("textbox", { name: "Message the AI" });
+  await input.fill("Summarize my board.");
+  await chat.getByRole("button", { name: "Send" }).click();
+
+  await expect(chat.getByRole("alert")).toHaveText("Could not reach OpenRouter.");
+  await expect(input).toHaveValue("Summarize my board.");
 });

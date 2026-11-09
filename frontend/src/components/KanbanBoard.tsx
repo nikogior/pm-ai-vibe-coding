@@ -14,6 +14,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { createId, moveCard, type BoardData } from "@/lib/kanban";
@@ -54,6 +55,7 @@ export const KanbanBoard = ({
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [isChatBusy, setIsChatBusy] = useState(false);
   const boardRef = useRef<BoardData | null>(null);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const renameSaveTimeout = useRef<number | null>(null);
@@ -91,6 +93,31 @@ export const KanbanBoard = ({
 
   const cardsById = useMemo(() => board?.cards ?? {}, [board?.cards]);
 
+  const persistBoard = (next: BoardData): Promise<void> => {
+    const save = saveQueue.current
+      .catch(() => undefined)
+      .then(async () => {
+        const response = await fetch("/api/board", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        });
+        if (!response.ok) {
+          throw new Error("Board save request failed.");
+        }
+        const savedBoard = (await response.json()) as BoardData;
+        if (boardRef.current === next) {
+          boardRef.current = savedBoard;
+          setBoard(savedBoard);
+        }
+        setSaveError("");
+      });
+    saveQueue.current = save.catch(() => {
+      setSaveError("Your changes could not be saved. Please try again.");
+    });
+    return save;
+  };
+
   const updateBoard = (
     update: (current: BoardData) => BoardData,
     debounce = false
@@ -105,27 +132,7 @@ export const KanbanBoard = ({
     setBoard(next);
 
     const persist = () => {
-      saveQueue.current = saveQueue.current
-        .catch(() => undefined)
-        .then(async () => {
-          const response = await fetch("/api/board", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(next),
-          });
-          if (!response.ok) {
-            throw new Error("Board save request failed.");
-          }
-          const savedBoard = (await response.json()) as BoardData;
-          if (boardRef.current === next) {
-            boardRef.current = savedBoard;
-            setBoard(savedBoard);
-          }
-          setSaveError("");
-        })
-        .catch(() => {
-          setSaveError("Your changes could not be saved. Please try again.");
-        });
+      void persistBoard(next).catch(() => undefined);
     };
 
     if (debounce) {
@@ -143,6 +150,24 @@ export const KanbanBoard = ({
       }
       persist();
     }
+  };
+
+  const prepareBoardForChat = async () => {
+    if (renameSaveTimeout.current !== null) {
+      window.clearTimeout(renameSaveTimeout.current);
+      renameSaveTimeout.current = null;
+    }
+    const current = boardRef.current;
+    if (!current) {
+      throw new Error("Your board is still loading. Please try again.");
+    }
+    await persistBoard(current);
+  };
+
+  const applyAIBoard = (updatedBoard: BoardData) => {
+    boardRef.current = updatedBoard;
+    setBoard(updatedBoard);
+    setSaveError("");
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -257,7 +282,7 @@ export const KanbanBoard = ({
       <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
-      <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-10 px-6 pb-16 pt-12">
+      <main className="relative mx-auto flex min-h-screen max-w-[1700px] flex-col gap-10 px-6 pb-16 pt-12">
         <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
@@ -313,41 +338,54 @@ export const KanbanBoard = ({
           </div>
         </header>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={kanbanCollisionDetection}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          {saveError ? (
-            <p className="text-sm text-red-700" role="alert">
-              {saveError}
-            </p>
-          ) : null}
-          <section className="grid gap-6 lg:grid-cols-5">
-            {board.columns.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                cards={column.cardIds.map((cardId) => board.cards[cardId])}
-                isDragTarget={overColumnId === column.id}
-                onRename={handleRenameColumn}
-                onAddCard={handleAddCard}
-                onEditCard={handleEditCard}
-                onDeleteCard={handleDeleteCard}
-              />
-            ))}
-          </section>
-          <DragOverlay>
-            {activeCard ? (
-              <div className="w-[260px]">
-                <KanbanCardPreview card={activeCard} />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={kanbanCollisionDetection}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <div className="min-w-0">
+              {saveError ? (
+                <p className="mb-4 text-sm text-red-700" role="alert">
+                  {saveError}
+                </p>
+              ) : null}
+              <section
+                aria-busy={isChatBusy}
+                className="grid gap-6 lg:grid-cols-5"
+                inert={isChatBusy}
+              >
+                {board.columns.map((column) => (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                    isDragTarget={overColumnId === column.id}
+                    onRename={handleRenameColumn}
+                    onAddCard={handleAddCard}
+                    onEditCard={handleEditCard}
+                    onDeleteCard={handleDeleteCard}
+                  />
+                ))}
+              </section>
+              <DragOverlay>
+                {activeCard ? (
+                  <div className="w-[260px]">
+                    <KanbanCardPreview card={activeCard} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </div>
+          </DndContext>
+          <ChatSidebar
+            onPrepareChat={prepareBoardForChat}
+            onBoardUpdate={applyAIBoard}
+            onBusyChange={setIsChatBusy}
+          />
+        </div>
       </main>
     </div>
   );

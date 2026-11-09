@@ -222,22 +222,24 @@ Success criteria:
 Purpose: deliver the full MVP experience with an AI chat panel that can update the board.
 
 Checklist:
-- [ ] Add the sidebar chat widget to the frontend.
-- [ ] Connect the chat UI to the backend AI endpoint.
-- [ ] Render AI replies and conversation history.
-- [ ] Accept structured AI updates to the board.
-- [ ] Refresh the UI automatically when the board changes due to AI actions.
-- [ ] Add end-to-end coverage for chat-driven card updates.
+- [x] Add the sidebar chat widget to the frontend.
+- [x] Connect the chat UI to the backend AI endpoint.
+- [x] Render AI replies and conversation history.
+- [x] Accept structured AI updates to the board.
+- [x] Refresh the UI immediately when the board changes due to AI actions.
+- [x] Add end-to-end coverage for chat-driven card updates and request errors.
 
 Validation:
-- Run the browser-based UI tests.
-- Verify that an AI update changes the visible Kanban board immediately.
-- Check that the user can continue the conversation without losing context.
+- [x] Run frontend unit tests (10 passed), lint, production build, and browser tests (9 passed).
+- [x] Verify that an AI update changes the visible Kanban board immediately and remains after reload.
+- [x] Verify that conversation history is included in subsequent requests.
+- [x] Verify AI request errors are shown and the prompt remains available to retry.
+- [x] Build the production Docker image with the static frontend.
 
 Success criteria:
-- The user can interact with the AI in a sidebar chat.
-- The AI may update the Kanban in response to prompts.
-- UI refresh is immediate and reliable.
+- [x] The user can interact with the AI in a sidebar chat.
+- [x] The AI may update the Kanban in response to prompts.
+- [x] UI refresh is immediate and reliable.
 
 ## Definition of done for the full MVP
 
