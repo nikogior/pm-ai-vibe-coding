@@ -11,10 +11,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 from app.ai import (
+    AIChatRequest,
+    AIResponse,
+    AIBoardUpdate,
     CONNECTIVITY_PROMPT,
     OpenRouterConfigurationError,
     OpenRouterRequestError,
     ask_openrouter,
+    chat_with_board,
 )
 from app.board import Board, read_board, write_board
 from app.database import (
@@ -112,6 +116,45 @@ def create_app(
         except OpenRouterRequestError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
         return {"response": response}
+
+    @application.post("/api/ai/chat", response_model=AIResponse)
+    async def ai_chat(
+        payload: AIChatRequest,
+        connection: Connection,
+        user_id: CurrentUser,
+    ) -> AIResponse:
+        try:
+            current_board = read_board(connection, user_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+        try:
+            ai_response = await chat_with_board(
+                payload.message,
+                payload.history,
+                current_board,
+            )
+        except OpenRouterConfigurationError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except OpenRouterRequestError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
+        if isinstance(ai_response, AIBoardUpdate):
+            if read_board(connection, user_id) != current_board:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Board changed while AI was processing; retry the request.",
+                )
+            try:
+                saved_board = write_board(connection, user_id, ai_response.board)
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=502,
+                    detail="AI response contains an invalid board update.",
+                ) from error
+            ai_response = ai_response.model_copy(update={"board": saved_board})
+
+        return ai_response
 
     @application.post("/api/auth/login")
     async def login(

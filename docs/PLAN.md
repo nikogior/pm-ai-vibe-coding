@@ -200,21 +200,22 @@ Success criteria:
 Purpose: send the board state plus user intent to the model and process structured output.
 
 Checklist:
-- [ ] Bundle the current Kanban JSON and conversation history with each AI request.
-- [ ] Add a request schema for the model response.
-- [ ] Allow the AI to return either a conversational reply or a board update.
-- [ ] Validate the response before applying changes.
-- [ ] Write tests covering normal AI chat responses and board mutation responses.
+- [x] Bundle the current Kanban JSON and validated conversation history with each AI request.
+- [x] Add strict Pydantic schemas for conversational replies and board updates.
+- [x] Allow the AI to return either a conversational reply or a board update.
+- [x] Validate model output and fixed-column constraints before applying changes.
+- [x] Write tests covering normal AI chat responses and board mutation responses.
 
 Validation:
-- Run backend tests for the AI service.
-- Verify both text-only and structured-update flows.
-- Confirm dangerous or invalid AI output is rejected safely.
+- [x] Run backend tests for the AI service (32 passed).
+- [x] Verify both conversational and structured-update flows through the production Docker app and OpenRouter.
+- [x] Confirm malformed model output and board updates that alter fixed columns are rejected without changing persisted board data.
+- [x] Confirm an AI board update is persisted and returned to the caller.
 
 Success criteria:
-- The AI can answer user questions using the board as context.
-- Structured responses can modify cards or board state only when valid.
-- The flow is stable and test-covered.
+- [x] The AI can answer user questions using the board as context.
+- [x] Structured responses can modify cards or board state only when valid.
+- [x] The flow is stable and test-covered.
 
 ## Part 10: Sidebar chat UI and automatic refresh
 
