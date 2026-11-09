@@ -153,10 +153,11 @@ Checklist:
 - [x] Add a frontend UI for editing existing card titles/details and persist those edits.
 - [x] Handle loading and error states gracefully.
 - [x] Apply the board returned by successful API saves when no newer local change exists.
-- [x] Add unit and browser tests for the board load, card edit, and mutation workflow.
+- [x] Add unit and browser tests for board loading, card edits, populated/empty-column drops, target highlighting, and same-column reordering.
 
 Validation:
 - [x] Run frontend unit/browser tests and backend tests.
+- [x] Reproduce and verify drag/drop in populated columns, empty columns, and same-column reordering.
 - [x] Verify card creation, editing, movement, and column renaming persist after reload against the Docker API.
 - [x] Verify those changes remain after restarting a container with the same SQLite volume.
 - [x] Confirm the frontend reflects API state changes correctly.

@@ -46,6 +46,7 @@ The frontend is served as a static export. Authentication and board state are ba
 
 - The app uses Next.js 16 with React 19.
 - Drag-and-drop is implemented with @dnd-kit.
+- Board drops use pointer collision first, preferring card targets and otherwise the column; the hovered target column is highlighted, including when a card is under the pointer.
 - KanbanBoard fetches the user's saved board on mount and persists supported mutations through `/api/board`.
 - Board state is held in React state while displayed; SQLite is the durable source of truth.
 - Existing card titles and details can be edited inline before saving to the backend.

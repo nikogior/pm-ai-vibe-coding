@@ -8,12 +8,39 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { createId, moveCard, type BoardData } from "@/lib/kanban";
+
+const kanbanCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  const nonActiveCollisions = pointerCollisions.filter(
+    (collision) => collision.id !== args.active.id
+  );
+  const cardCollisions = nonActiveCollisions.filter((collision) =>
+    args.droppableContainers.some(
+      (container) =>
+        container.id === collision.id && container.data.current?.sortable
+    )
+  );
+
+  if (cardCollisions.length > 0) {
+    return cardCollisions;
+  }
+  if (nonActiveCollisions.length > 0) {
+    return nonActiveCollisions;
+  }
+  if (pointerCollisions.length > 0) {
+    return pointerCollisions;
+  }
+  return closestCorners(args);
+};
 
 export const KanbanBoard = ({
   onLogout,
@@ -24,6 +51,7 @@ export const KanbanBoard = ({
 }) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
   const boardRef = useRef<BoardData | null>(null);
@@ -119,11 +147,28 @@ export const KanbanBoard = ({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
+    setOverColumnId(null);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const overId = event.over?.id.toString();
+    const currentBoard = boardRef.current;
+    const overColumn = currentBoard?.columns.find(
+      (column) =>
+        column.id === overId || column.cardIds.includes(String(overId))
+    );
+    setOverColumnId(overColumn?.id ?? null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveCardId(null);
+    setOverColumnId(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveCardId(null);
+    setOverColumnId(null);
 
     if (!over || active.id === over.id) {
       return;
@@ -270,9 +315,11 @@ export const KanbanBoard = ({
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={kanbanCollisionDetection}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           {saveError ? (
             <p className="text-sm text-red-700" role="alert">
@@ -285,6 +332,7 @@ export const KanbanBoard = ({
                 key={column.id}
                 column={column}
                 cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                isDragTarget={overColumnId === column.id}
                 onRename={handleRenameColumn}
                 onAddCard={handleAddCard}
                 onEditCard={handleEditCard}
